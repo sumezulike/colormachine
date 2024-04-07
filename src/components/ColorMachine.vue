@@ -1,5 +1,5 @@
 <script setup>
-import {ref, computed, reactive} from "vue"
+import {ref, computed } from "vue"
 import chroma from "chroma-js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/Color.vue";
@@ -23,6 +23,7 @@ const mixedColors = computed(() => {
 </script>
 
 <template>
+  <h1>ColorMachine</h1>
   <ColorRow title="Base color">
     <EditableColor v-model:color="baseColor"/>
     <h2 :style="{marginLeft: '2em'}">Gray ratio:</h2>
