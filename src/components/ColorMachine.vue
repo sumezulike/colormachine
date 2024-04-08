@@ -94,9 +94,11 @@ function create_preset() {
 }
 
 function save_preset(name) {
-  const presetStr = create_preset()
-  localStorage.setItem(`PRESET_${name}`, presetStr)
-  newPresetName.value = ""
+  if (name !== undefined && name !== null && name.length > 0) {
+    const presetStr = create_preset()
+    localStorage.setItem(`PRESET_${name}`, presetStr)
+    newPresetName.value = ""
+  }
 }
 
 function getAllPresetNames() {
@@ -187,7 +189,7 @@ watch(mixedColors, saveState)
     <div class="configs presets">
       <div>
         <input type="text" id="preset-name" v-model="newPresetName">
-        <button @click="() => save_preset(newPresetName)">Save preset</button>
+        <button :disabled="!newPresetName" @click="() => save_preset(newPresetName)">Save preset</button>
       </div>
       <div class="select-preset-container">
         <select id="load-preset" v-model="selectedPresetName">
