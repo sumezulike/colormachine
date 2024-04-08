@@ -14,7 +14,7 @@ function resetGray() {
   grays.value = [
     {color: chroma("#1c1c1c"), ratioFactor: 1.0},
     {color: chroma("#777777"), ratioFactor: 1.0},
-    {color: chroma("#b5b5b5"), ratioFactor: 0.9},
+    {color: chroma("#b5b5b5"), ratioFactor: 0.95},
     {color: chroma("#e3e3e3"), ratioFactor: 0.8},
     {color: chroma("#f6f6f6"), ratioFactor: 0.3}
   ]
