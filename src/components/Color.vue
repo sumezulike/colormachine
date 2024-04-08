@@ -1,47 +1,63 @@
 <script setup>
-import {onMounted, ref, computed} from "vue";
+import {computed} from "vue";
 import chroma from "chroma-js"
+import colornames from "../assets/colornames.json"
+import Copyable from "@/components/Copyable.vue";
 
 const props = defineProps(["color"])
 const color = computed(() => chroma(props.color))
 const textColor = computed(() => chroma.contrast(color.value, 'black') > 4.5 ? 'black' : 'white')
 
-let hintVisible = ref(false);
-
-function showHint() {
-  hintVisible.value = true
-  setTimeout(() => hintVisible.value = false, 1000)
+function getClosestColor(c) {
+  let closest = "?";
+  let minDist = 100000000;
+  for (const [hex, name] of Object.entries(colornames)) {
+    let newDist = chroma.deltaE(c, hex);
+    if (newDist < minDist) {
+      closest = name;
+      minDist = newDist;
+    }
+    if (minDist === 0) {
+      return closest;
+    }
+  }
+  return closest;
 }
 
-function copyHex() {
-  showHint();
-  navigator.clipboard.writeText(color.value);
-}
-
+const closestColorname = computed(() => getClosestColor(color.value))
+const rgb = computed(() => color.value.css().toUpperCase())
 
 </script>
 
 <template>
-  <div class="color" @click="copyHex">
-    <div class="square"><span class="hex">{{color.hex().toUpperCase()}}</span></div>
-    <span v-show="hintVisible" class="tooltiptext">Copied!</span>
+  <div class="color">
+    <Copyable :content="color.hex()" :color="textColor">
+    <div class="square"><span class="hex">{{ color.hex().toUpperCase() }}</span></div>
+    </Copyable>
+    <Copyable :content="rgb" :color="textColor">
+      <div class="rgb"><h3>{{rgb}}</h3></div>
+    </Copyable>
+    <Copyable :content="closestColorname" :color="textColor">
+      <div class="name">{{closestColorname}}</div>
+    </Copyable>
   </div>
 </template>
 
 <style scoped>
 .color {
-  width: 100px;
+  width: 12em;
   display: flex;
   flex-direction: column;
   margin: 0.5em 0.5em 0;
+  align-items: center;
 }
+
 .square {
-  min-width: 100px;
-  height: 100px;
-  border-radius: 5px;
+  min-width: 12em;
+  height: 12em;
+  border-radius: 3em;
   border: 1px #888 solid;
   background-color: v-bind(color);
-  cursor: pointer;
 
   display: flex;
   flex-direction: row;
@@ -49,19 +65,10 @@ function copyHex() {
   text-align: center;
 }
 .hex {
+  width: 100%;
   text-align: center;
   font-size: 1.4em;
   font-family: sans-serif;
   color: v-bind(textColor);
-}
-.tooltiptext {
-  width: 120px;
-  color: v-bind(textColor);
-  text-align: center;
-  border-radius: 6px;
-  padding: 5px 0;
-
-  position: fixed;
-  z-index: 999;
 }
 </style>
