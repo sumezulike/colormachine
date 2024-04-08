@@ -44,7 +44,13 @@ const textColor = computed(() => chroma.contrast(color.value, 'black') > 4.5 ? '
 .color-container {
   position: relative;
 }
+.color-container:hover {
+  .pencil {
+    visibility: visible;
+  }
+}
 .pencil {
+  visibility: hidden;
   color: v-bind(textColor);
   cursor: pointer;
   position: absolute;

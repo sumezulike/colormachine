@@ -197,7 +197,7 @@ watch(showShades, saveState)
   </ColorRow>
   <div v-show="showGrays">
     <ColorRow title="Grays">
-      <EditableColor :show="false" v-for="(c, i) in grays" v-model:color="grays[i].color">
+      <EditableColor class="gray-color" :show="false" v-for="(c, i) in grays" v-model:color="grays[i].color">
         <div class="delete-button">
           <button @click="() => deleteGray(i)">
             <svg xmlns="http://www.w3.org/2000/svg" width="2em" height="2em" viewBox="0 0 24 24"
@@ -284,7 +284,14 @@ input, select, button {
   width: 6em;
 }
 
+.gray-color:hover {
+  .delete-button {
+    visibility: visible;
+  }
+}
+
 .delete-button {
+  visibility: hidden;
   position: absolute;
   top: 1em;
   right: 1em;
