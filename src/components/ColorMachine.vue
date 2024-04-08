@@ -4,22 +4,32 @@ import chroma from "chroma-js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/Color.vue";
 import EditableColor from "@/components/EditableColor.vue";
-const baseColor = ref(chroma.random())
-const grays = ref(null)
-const baseShades = computed(() => grays.value.map((g) => baseColor.value.luminance(g.color.luminance())))
-const colorSpaces = ["rgb", "hsl", "lab", "lch", "lrgb"]
-const grayRatio = ref(0.9)
 
-function resetGray() {
-  grays.value = [
-    {color: chroma("#1c1c1c"), ratioFactor: 1.0},
-    {color: chroma("#777777"), ratioFactor: 1.0},
-    {color: chroma("#b5b5b5"), ratioFactor: 0.95},
-    {color: chroma("#e3e3e3"), ratioFactor: 0.8},
-    {color: chroma("#f6f6f6"), ratioFactor: 0.3}
-  ]
-}
-resetGray()
+// Constant
+const colorSpaces = ["rgb", "hsl", "lab", "lch", "lrgb"]
+const defaultGrays = [
+  {color: chroma("#262626"), ratioFactor: 1.0},
+  {color: chroma("#777777"), ratioFactor: 1.0},
+  {color: chroma("#b5b5b5"), ratioFactor: 0.95},
+  {color: chroma("#e3e3e3"), ratioFactor: 0.8},
+  {color: chroma("#f6f6f6"), ratioFactor: 0.3}
+]
+const defaultActiveColorSpace = "hsl"
+const defaultGrayRatio = 0.9
+
+// Editable
+const baseColor = ref(chroma.random())
+const grays = ref(defaultGrays)
+const activeColorSpace = ref(defaultActiveColorSpace);
+const grayRatio = ref(defaultGrayRatio)
+const showGrays = ref(false);
+const showShades = ref(false);
+const newPresetName = ref("")
+const selectedPresetName = ref("default")
+
+// Computed
+const baseShades = computed(() => grays.value.map((g) => baseColor.value.luminance(g.color.luminance())))
+const mixedColors = computed(() => grays.value.map((g, i) => chroma.mix(baseShades.value[i], g.color, grayRatio.value * g.ratioFactor, activeColorSpace.value)));
 
 function isFloat(val) {
   const floatRegex = /^-?\d+(?:[.,]\d*?)?$/;
@@ -40,14 +50,9 @@ function setGrayRatioFactor(e, i) {
   if(isFloat(newFactor)) {
     const f = parseFloat(newFactor);
     grays.value[i].ratioFactor = clamp(0, f, 1)
-    console.log(grays.value[i])
   }
 }
 
-const colorSpace = ref("hsl");
-const mixedColors = computed(() => grays.value.map((g, i) => chroma.mix(baseShades.value[i], g.color, grayRatio.value * g.ratioFactor, colorSpace.value)));
-const showGrays = ref(false);
-const showShades = ref(false);
 
 function updateFavicon() {
   const canvas = document.createElement('canvas');
@@ -77,9 +82,80 @@ function updateFavicon() {
     document.getElementsByTagName('head')[0].appendChild(link);
   }
 }
-updateFavicon()
 
+function create_preset() {
+  return JSON.stringify(
+      {
+        grays: grays.value.map((g) => Object.assign({color: g.color.hex(), ratioFactor: g.ratioFactor})),
+        activeColorSpace: activeColorSpace.value,
+        grayRatio: grayRatio.value
+      }
+  )
+}
+
+function save_preset(name) {
+  const presetStr = create_preset()
+  localStorage.setItem(`PRESET_${name}`, presetStr)
+  newPresetName.value = ""
+}
+
+function getAllPresetNames() {
+  return Object.keys(localStorage).filter((k) => k.startsWith("PRESET_")).map((k) => k.slice(7))
+}
+
+function load_preset(name) {
+  let presetStr;
+  if (name !== null && name !== undefined) {
+     presetStr = localStorage.getItem(`PRESET_${name}`)
+  }
+  if (presetStr !== null && presetStr !== undefined) {
+    const preset = JSON.parse(presetStr)
+
+    grays.value = preset.grays.map((g) => Object.assign({color: chroma(g.color), ratioFactor: g.ratioFactor}))
+    activeColorSpace.value = preset.activeColorSpace
+    grayRatio.value = preset.grayRatio
+  } else {
+    grays.value = defaultGrays
+    activeColorSpace.value = defaultActiveColorSpace
+    grayRatio.value = defaultGrayRatio
+  }
+}
+
+function saveState() {
+  const stateStr = JSON.stringify(
+      {
+        baseColor: baseColor.value.hex(),
+        grays: grays.value.map((g) => Object.assign({color: g.color.hex(), ratioFactor: g.ratioFactor})),
+        activeColorSpace: activeColorSpace.value,
+        grayRatio: grayRatio.value,
+        showGrays: showGrays.value,
+        showShades: showShades.value
+      }
+  )
+  localStorage.setItem(`_STATE_`, stateStr)
+}
+
+function loadState() {
+  const stateStr = localStorage.getItem("_STATE_")
+
+  if (stateStr !== null && stateStr !== undefined) {
+    const state = JSON.parse(stateStr)
+
+    baseColor.value = chroma(state.baseColor)
+    grays.value = state.grays.map((g) => Object.assign({color: chroma(g.color), ratioFactor: g.ratioFactor}))
+    activeColorSpace.value = state.activeColorSpace
+    grayRatio.value = state.grayRatio
+    showGrays.value = state.showGrays
+    showShades.value = state.showShades
+  }
+}
+
+load_preset()
+save_preset("default")
+loadState()
+updateFavicon()
 watch(mixedColors, updateFavicon)
+watch(mixedColors, saveState)
 
 </script>
 
@@ -95,7 +171,7 @@ watch(mixedColors, updateFavicon)
       </div>
       <div>
         <label for="colorspace">Colormode:</label>
-        <select id="colorspace" v-model="colorSpace">
+        <select id="colorspace" v-model="activeColorSpace">
           <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">{{ cs.toUpperCase() }}</option>
         </select>
       </div>
@@ -106,6 +182,18 @@ watch(mixedColors, updateFavicon)
       <div>
         <label for="show-shades" class="show-shades">Show shades</label>
         <input id="show-shades" type="checkbox" class="show-shades" v-model="showShades">
+      </div>
+    </div>
+    <div class="configs presets">
+      <div>
+        <input type="text" id="preset-name" v-model="newPresetName">
+        <button @click="() => save_preset(newPresetName)">Save preset</button>
+      </div>
+      <div class="select-preset-container">
+        <select id="load-preset" v-model="selectedPresetName">
+          <option v-for="(p, index) in getAllPresetNames()" :key="index" :value="p">{{ p }}</option>
+        </select>
+        <button @click="() => load_preset(selectedPresetName)">Load preset</button>
       </div>
     </div>
   </ColorRow>
@@ -119,7 +207,6 @@ watch(mixedColors, updateFavicon)
           </div>
         </template>
       </EditableColor>
-      <input type="button" @click="resetGray" value="&#8634;">
     </ColorRow>
   </div>
   <div v-show="showShades">
@@ -127,7 +214,7 @@ watch(mixedColors, updateFavicon)
       <Color v-for="(c, i) in baseShades" :color="baseShades[i]"/>
     </ColorRow>
   </div>
-  <ColorRow :title="`Interpolation(${colorSpace.toUpperCase()})`">
+  <ColorRow :title="`Interpolation(${activeColorSpace.toUpperCase()})`">
     <Color v-for="(mc, i) in mixedColors" :color="mixedColors[i]"/>
   </ColorRow>
 </template>
@@ -139,7 +226,7 @@ h1 {
   position: relative;
   top: -10px;
 }
-input {
+input, select, button{
   height: fit-content;
   margin: 0.5em 0.5em 0;
 }
@@ -147,6 +234,21 @@ input {
   display: flex;
   flex-direction: column;
   margin: 2em;
+}
+.presets {
+  select {
+    flex-grow: 1;
+    height: 2em;
+  }
+  button {
+    width: fit-content;
+    height: 2em;
+  }
+}
+.select-preset-container {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
 }
 .ratio-factor {
   width: 6em;
