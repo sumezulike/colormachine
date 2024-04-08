@@ -17,7 +17,7 @@ const props = defineProps(["title"])
   display: flex;
   flex-direction: row;
   align-items: flex-start;
-  overflow: hidden;
+  overflow: scroll;
 }
 .headline {
   display: flex;
