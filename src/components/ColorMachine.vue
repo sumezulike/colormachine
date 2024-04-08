@@ -158,6 +158,8 @@ loadState()
 updateFavicon()
 watch(mixedColors, updateFavicon)
 watch(mixedColors, saveState)
+watch(showGrays, saveState)
+watch(showShades, saveState)
 
 </script>
 
