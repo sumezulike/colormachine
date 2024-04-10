@@ -7,6 +7,7 @@ import EditableColor from "@/components/EditableColor.vue";
 import {clamp, isFloat} from "@/utils.js";
 import { argbFromHex, hexFromArgb, TonalPalette } from '@material/material-color-utilities';
 import AddButton from "@/components/AddButton.vue";
+import Copyable from "@/components/Copyable.vue";
 
 // Constant
 const colorSpaces = ["rgb", "hsl", "lab", "lch", "lrgb"]
@@ -116,7 +117,7 @@ function create_preset() {
 
 function save_preset(name) {
   if (name !== undefined && name !== null && name.length > 0) {
-    const presetStr = create_preset()
+    const presetStr = JSON.stringify(create_preset())
     localStorage.setItem(`PRESET_${name}`, presetStr)
     newPresetName.value = ""
   }
@@ -143,6 +144,21 @@ function load_preset(name) {
   }
 }
 
+function exportData() {
+  const state = createState(
+      ["showGrays", "showLumAdjusted", "showShades", "showTints", "showPalette", "showTones", "palette", "shades", "tints"]
+  )
+  const exData = {
+    ...state,
+    adjustedLuminance: lumAdjusted.value.map((c) => c.hex()),
+    tonesColors: tonesColors.value.map((c) => c.hex()),
+    colorPalette: colorPalette.value.map((c, i) => Object.assign({color: c.hex(), value: palette.value[i]})),
+    shadesColors: shadesColors.value.map((c, i) => Object.assign({color: c.hex(), value: shades.value[i]})),
+    tintsColors: tintsColors.value.map((c, i) => Object.assign({color: c.hex(), value: tints.value[i]})),
+  };
+  return JSON.stringify(exData, null, 4)
+}
+
 function createState(exclude) {
   let state =
       {
@@ -164,11 +180,11 @@ function createState(exclude) {
     state = Object.fromEntries(Object.entries(state).filter(([key]) => !exclude.includes(key)));
   }
 
-  return JSON.stringify(state)
+  return state
 }
 
 function saveState() {
-  const stateStr = createState()
+  const stateStr = JSON.stringify(createState())
   localStorage.setItem(`_STATE_`, stateStr)
 }
 
@@ -258,6 +274,11 @@ watch(showTones, saveState)
         </select>
         <button @click="() => load_preset(selectedPresetName)">Load preset</button>
       </div>
+      <Copyable :content="exportData()" :hide-content="true">
+        <button class="copy-button">
+          Copy as JSON
+        </button>
+      </Copyable>
     </div>
   </ColorRow>
   <div v-show="showPalette">

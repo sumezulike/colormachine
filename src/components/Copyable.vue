@@ -1,8 +1,8 @@
 <script setup>
 
-import {ref} from "vue";
+import {computed, ref} from "vue";
 
-const props = defineProps(["content", "color"])
+const props = defineProps(["content", "color", "hideContent"])
 
 let hintVisible = ref(false);
 const hintX = ref(0)
@@ -20,10 +20,12 @@ function copy(event) {
   navigator.clipboard.writeText(props.content);
 }
 
+const hintText = computed(() => props.hideContent ? "Copied!" : `Copied ${props.content}`)
+
 </script>
 
 <template>
-  <span v-show="hintVisible" class="tooltiptext" :style="{top: hintY.value, left: hintX.value}">Copied '{{content}}'</span>
+  <div v-show="hintVisible" class="tooltiptext">{{hintText}}</div>
   <div class="clickable"  @click="copy">
     <slot></slot>
   </div>
@@ -32,14 +34,18 @@ function copy(event) {
 <style scoped>
 
 .tooltiptext {
+  display: block;
   width: fit-content;
   color: v-bind(props.color);
   text-align: center;
-  border-radius: 6px;
-  padding: 5px 0;
-
+  border-radius: 0.5em;
+  padding: 0.25em;
+  top: v-bind(hintY)px;
+  left: v-bind(hintX)px;
   position: absolute;
   z-index: 999;
+  background: white;
+  border: #333333 1px solid;
 }
 .clickable {
   cursor: pointer;

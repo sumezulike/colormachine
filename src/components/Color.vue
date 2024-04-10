@@ -31,7 +31,7 @@ const rgb = computed(() => color.value.css().toUpperCase())
 
 <template>
   <div class="color">
-    <Copyable :content="color.hex()" :color="textColor">
+    <Copyable :content="color.hex().toUpperCase()" :color="textColor">
     <div class="square"><span class="hex">{{ color.hex().toUpperCase() }}</span></div>
     </Copyable>
     <Copyable :content="rgb" :color="textColor">
