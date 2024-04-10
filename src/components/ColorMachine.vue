@@ -1,13 +1,18 @@
 <script setup>
-import {ref, computed, watch} from "vue"
+import {ref, computed, watch, onMounted} from "vue"
 import chroma from "chroma-js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/Color.vue";
 import EditableColor from "@/components/EditableColor.vue";
 import {clamp, isFloat} from "@/utils.js";
+import { argbFromHex, hexFromArgb, TonalPalette } from '@material/material-color-utilities';
+import AddButton from "@/components/AddButton.vue";
 
 // Constant
 const colorSpaces = ["rgb", "hsl", "lab", "lch", "lrgb"]
+const defaultPalette = [800, 500, 400, 200, 50]
+const defaultShades = [10, 30, 50, 70, 90]
+const defaultTints = [10, 30, 50, 70, 90]
 const defaultGrays = [
   {color: chroma("#262626"), ratioFactor: 1.0},
   {color: chroma("#777777"), ratioFactor: 1.0},
@@ -15,29 +20,48 @@ const defaultGrays = [
   {color: chroma("#e3e3e3"), ratioFactor: 0.8},
   {color: chroma("#f6f6f6"), ratioFactor: 0.3}
 ]
-const defaultActiveColorSpace = "hsl"
+const defaultActiveColorSpaces = {
+  tones: "hsl",
+  shades: "hsl",
+  tints: "hsl",
+}
 const defaultGrayRatio = 0.9
 
 // Editable
 const baseColor = ref(chroma.random())
 const grays = ref(defaultGrays)
-const activeColorSpace = ref(defaultActiveColorSpace);
+const palette = ref(defaultPalette)
+const shades = ref(defaultShades)
+const tints = ref(defaultTints)
+const activeColorSpaces = ref(defaultActiveColorSpaces);
 const grayRatio = ref(defaultGrayRatio)
 const showGrays = ref(false);
 const showShades = ref(false);
+const showTones = ref(true)
+const showTints = ref(false);
+const showLumAdjusted = ref(false);
+const showPalette = ref(false);
 const newPresetName = ref("")
 const selectedPresetName = ref("default")
 
 // Computed
-const baseShades = computed(() => grays.value.map((g) => baseColor.value.luminance(g.color.luminance())))
-const mixedColors = computed(() => grays.value.map((g, i) => chroma.mix(baseShades.value[i], g.color, grayRatio.value * g.ratioFactor, activeColorSpace.value)));
+const lumAdjusted = computed(() => grays.value.map((g) => baseColor.value.luminance(g.color.luminance())))
+const tonesColors = computed(() => grays.value.map((g, i) => chroma.mix(lumAdjusted.value[i], g.color, grayRatio.value * g.ratioFactor, activeColorSpaces.value.tones)));
+const colorPalette = computed(() => palette.value.map((t) => getToneFromColor(baseColor.value, 100-t/10)));
+const shadesColors = computed(() => shades.value.map((w) => chroma.mix(baseColor.value, "black", w/100, activeColorSpaces.value.shades)))
+const tintsColors = computed(() => tints.value.map((w) => chroma.mix(baseColor.value, "white", w/100, activeColorSpaces.value.tints)))
+
+function getToneFromColor(color, tone) {
+  const newCol = TonalPalette.fromInt(argbFromHex(color.hex())).tone(tone);
+  return chroma(hexFromArgb(newCol))
+}
 
 function addGray() {
   grays.value.push({color: chroma("white"), ratioFactor: 1.0})
 }
 
-function deleteGray(i) {
-  grays.value.splice(i, 1)
+function deleteValue(array, i) {
+  array.splice(i, 1)
 }
 
 function setGrayRatioFactor(e, i) {
@@ -57,17 +81,26 @@ function updateFavicon() {
   img.src = '/colormachine/favicon.ico';
   img.onload = function () {
     ctx.drawImage(img, 0, 0);
-    ctx.fillStyle = grays.value[2].color.hex();
+    // [x][ ]
+    // [ ][ ]
+    ctx.fillStyle = baseColor.value.hex();
     ctx.fillRect(0, 0, 16, 16);
 
-    ctx.fillStyle = baseColor.value.hex();
-    ctx.fillRect(16, 16, 16, 16);
-
-    ctx.fillStyle = mixedColors.value[1].hex();
+    // [ ][x]
+    // [ ][ ]
+    ctx.fillStyle = tonesColors.value[Math.ceil(tonesColors.value.length/2)].hex();
     ctx.fillRect(16, 0, 16, 16);
 
-    ctx.fillStyle = mixedColors.value[3].hex();
+    // [ ][ ]
+    // [x][ ]
+    ctx.fillStyle = grays.value[Math.floor(grays.value.length/2)].color.hex();
     ctx.fillRect(0, 16, 16, 16);
+
+    // [ ][ ]
+    // [ ][x]
+    ctx.fillStyle = tonesColors.value[1].hex();
+    ctx.fillRect(16, 16, 16, 16);
+
 
     const link = document.createElement('link');
     link.type = 'image/x-icon';
@@ -78,13 +111,7 @@ function updateFavicon() {
 }
 
 function create_preset() {
-  return JSON.stringify(
-      {
-        grays: grays.value.map((g) => Object.assign({color: g.color.hex(), ratioFactor: g.ratioFactor})),
-        activeColorSpace: activeColorSpace.value,
-        grayRatio: grayRatio.value
-      }
-  )
+  return createState(["baseColor"])
 }
 
 function save_preset(name) {
@@ -106,28 +133,42 @@ function load_preset(name) {
   }
   if (presetStr !== null && presetStr !== undefined) {
     const preset = JSON.parse(presetStr)
+    load(preset)
 
-    grays.value = preset.grays.map((g) => Object.assign({color: chroma(g.color), ratioFactor: g.ratioFactor}))
-    activeColorSpace.value = preset.activeColorSpace
-    grayRatio.value = preset.grayRatio
   } else {
     grays.value = defaultGrays
-    activeColorSpace.value = defaultActiveColorSpace
+    palette.value = defaultPalette
+    activeColorSpaces.value = defaultActiveColorSpaces
     grayRatio.value = defaultGrayRatio
   }
 }
 
-function saveState() {
-  const stateStr = JSON.stringify(
+function createState(exclude) {
+  let state =
       {
         baseColor: baseColor.value.hex(),
         grays: grays.value.map((g) => Object.assign({color: g.color.hex(), ratioFactor: g.ratioFactor})),
-        activeColorSpace: activeColorSpace.value,
+        palette: palette.value,
+        shades: shades.value,
+        tints: tints.value,
+        activeColorSpaces: activeColorSpaces.value,
         grayRatio: grayRatio.value,
         showGrays: showGrays.value,
-        showShades: showShades.value
+        showLumAdjusted: showLumAdjusted.value,
+        showShades: showShades.value,
+        showTints: showTints.value,
+        showPalette: showPalette.value,
+        showTones: showTones.value,
       }
-  )
+  if (exclude !== undefined) {
+    state = Object.fromEntries(Object.entries(state).filter(([key]) => !exclude.includes(key)));
+  }
+
+  return JSON.stringify(state)
+}
+
+function saveState() {
+  const stateStr = createState()
   localStorage.setItem(`_STATE_`, stateStr)
 }
 
@@ -136,50 +177,74 @@ function loadState() {
 
   if (stateStr !== null && stateStr !== undefined) {
     const state = JSON.parse(stateStr)
-
-    baseColor.value = chroma(state.baseColor)
-    grays.value = state.grays.map((g) => Object.assign({color: chroma(g.color), ratioFactor: g.ratioFactor}))
-    activeColorSpace.value = state.activeColorSpace
-    grayRatio.value = state.grayRatio
-    showGrays.value = state.showGrays
-    showShades.value = state.showShades
+    load(state)
   }
+}
+
+function load(state) {
+  baseColor.value = chroma(state.baseColor || baseColor.value)
+  palette.value = state.palette || palette.value
+  grays.value = state.grays === undefined ? grays.value : state.grays.map((g) => Object.assign({color: chroma(g.color), ratioFactor: g.ratioFactor}))
+  shades.value = state.shades || shades.value
+  tints.value = state.tints || tints.value
+  activeColorSpaces.value = state.activeColorSpaces || activeColorSpaces.value
+  grayRatio.value = state.grayRatio|| grayRatio.value
+  showGrays.value = state.showGrays === undefined ? showGrays.value : state.showGrays
+  showLumAdjusted.value = state.showLumAdjusted === undefined ? showLumAdjusted.value : state.showLumAdjusted
+  showShades.value = state.showShades === undefined ? showShades.value : state.showShades
+  showTints.value = state.showTints === undefined ? showTints.value : state.showTints
+  showPalette.value = state.showPalette === undefined ? showPalette.value : state.showPalette
+  showTones.value = state.showTones === undefined ? showTones.value : state.showTones
 }
 
 load_preset()
 save_preset("default")
 loadState()
 updateFavicon()
-watch(mixedColors, updateFavicon)
-watch(mixedColors, saveState)
-watch(showGrays, saveState)
+watch(tonesColors, updateFavicon)
+watch(tonesColors, saveState)
+watch(activeColorSpaces, saveState)
+watch(shades, saveState)
+watch(tints, saveState)
+watch(palette, saveState)
+
+watch(showPalette, saveState)
 watch(showShades, saveState)
+watch(showTints, saveState)
+watch(showGrays, saveState)
+watch(showLumAdjusted, saveState)
+watch(showTones, saveState)
 
 </script>
 
 <template>
   <h1>ColorMachine</h1>
   <ColorRow title="Base color">
-    <EditableColor v-model:color="baseColor" :hidePencil="true"/>
+    <EditableColor v-model:color="baseColor" :hidePencil="true" :hide-delete="true"/>
     <div class="configs">
       <div>
-        <label for="grayratio-slider">Gray ratio:</label>
-        <input id="grayratio-slider" type="range" min="0" max="1" step="0.01" v-model="grayRatio" class="slider">
-        <input id="grayratio-text" type="text" v-model="grayRatio" style="width: 50px;">
+        <label for="show-palette" class="show-hide-label">Show material palette</label>
+        <input id="show-palette" type="checkbox" class="show-hide-checkbox" v-model="showPalette">
       </div>
       <div>
-        <label for="colorspace">Colormode:</label>
-        <select id="colorspace" v-model="activeColorSpace">
-          <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">{{ cs.toUpperCase() }}</option>
-        </select>
+        <label for="show-shades" class="show-hide-label">Show shades</label>
+        <input id="show-shades" type="checkbox" class="show-hide-checkbox" v-model="showShades">
       </div>
       <div>
-        <label for="show-grays" class="show-grays">Show grays</label>
-        <input id="show-grays" type="checkbox" class="show-grays" v-model="showGrays">
+        <label for="show-tints" class="show-hide-label">Show tints</label>
+        <input id="show-tints" type="checkbox" class="show-hide-checkbox" v-model="showTints">
       </div>
       <div>
-        <label for="show-shades" class="show-shades">Show shades</label>
-        <input id="show-shades" type="checkbox" class="show-shades" v-model="showShades">
+        <label for="show-grays" class="show-hide-label">Show grays</label>
+        <input id="show-grays" type="checkbox" class="show-hide-checkbox" v-model="showGrays">
+      </div>
+      <div>
+        <label for="show-lum-adj" class="show-hide-label">Show gray-adjusted luminance</label>
+        <input id="show-lum-adj" type="checkbox" class="show-hide-checkbox" v-model="showLumAdjusted">
+      </div>
+      <div>
+        <label for="show-tones" class="show-hide-label">Show gray tones</label>
+        <input id="show-tones" type="checkbox" class="show-hide-checkbox" v-model="showTones">
       </div>
     </div>
     <div class="configs presets">
@@ -195,18 +260,90 @@ watch(showShades, saveState)
       </div>
     </div>
   </ColorRow>
+  <div v-show="showPalette">
+    <ColorRow title="Material Palette" :has-settings="false">
+      <EditableColor
+          class="deletable"
+          v-for="([k, v], i) in Object.entries(colorPalette)"
+          :show="false"
+          :color="colorPalette[k]"
+          :delete-func="() => deleteValue(palette, i)"
+          :id="'palette-'+i"
+      >
+        <template #inputs>
+        <div class="color-value">
+          <label :for="'palette-val-'+i">Value</label>
+          <input class="palette-val" type="number" min="0" max="1000" step="50" :id="'palette-val-'+i" v-model="palette[i]">
+        </div>
+        </template>
+        <template #color-slot>
+          <div>Primary-{{palette[i]}}</div>
+        </template>
+      </EditableColor>
+      <AddButton :add-func="() => palette.push(0)"/>
+    </ColorRow>
+  </div>
+  <div v-show="showShades">
+    <ColorRow :title="`Shades (${activeColorSpaces.shades.toUpperCase()})`" :has-settings="true">
+      <template #settings>
+        <div>
+          <label for="colorspace">Colormode:</label>
+          <select id="colorspace" v-model="activeColorSpaces.shades">
+            <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">{{ cs.toUpperCase() }}</option>
+          </select>
+        </div>
+      </template>
+      <EditableColor
+          v-for="(c, i) in shadesColors"
+          :color="shadesColors[i]"
+          :show="false"
+          :id="'shades-'+i"
+          :delete-func="() => deleteValue(shades, i)"
+      >
+        <template #inputs>
+          <div class="color-value">
+            <label :for="'shades-val-'+i">Value</label>
+            <input type="number" min="0" max="100" step="5" :id="'shades-val-'+i" v-model="shades[i]">
+          </div>
+        </template>
+      </EditableColor>
+      <AddButton :add-func="() => shades.push(0)"/>
+    </ColorRow>
+  </div>
+  <div v-show="showTints">
+    <ColorRow :title="`Tints (${activeColorSpaces.tints.toUpperCase()})`" :has-settings="true">
+      <template #settings>
+        <label for="colorspace">Colormode:</label>
+        <select id="colorspace" v-model="activeColorSpaces.tints">
+          <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">{{ cs.toUpperCase() }}</option>
+        </select>
+      </template>
+      <EditableColor
+          v-for="(c, i) in tintsColors"
+          :color="tintsColors[i]"
+          :show="false"
+          :id="'tints-'+i"
+          :delete-func="() => deleteValue(tints, i)"
+      >
+        <template #inputs>
+          <div class="color-value">
+            <label :for="'tints-val-'+i">Value</label>
+            <input type="number" min="0" max="100" step="5" :id="'tints-val-'+i" v-model="tints[i]">
+          </div>
+        </template>
+      </EditableColor>
+      <AddButton :add-func="() => tints.push(0)"/>
+    </ColorRow>
+  </div>
   <div v-show="showGrays">
     <ColorRow title="Grays">
-      <EditableColor class="gray-color" :show="false" v-for="(c, i) in grays" v-model:color="grays[i].color">
-        <div class="delete-button">
-          <button @click="() => deleteGray(i)">
-            <svg xmlns="http://www.w3.org/2000/svg" width="2em" height="2em" viewBox="0 0 24 24"
-                 stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-            </svg>
-          </button>
-        </div>
+      <EditableColor
+          :show="false"
+          v-for="(c, i) in grays"
+          v-model:color="grays[i].color"
+          :id="'grays-'+i"
+          :delete-func="() => deleteValue(grays, i)"
+      >
         <template #extra-input>
           <div>
             <label :for="'grayratio-factor-'+i">Gray ratio factor</label>
@@ -215,32 +352,36 @@ watch(showShades, saveState)
           </div>
         </template>
       </EditableColor>
-        <div class="add-button">
-        <button @click="addGray">
-          <svg height="4em" width="4em" version="1.1" id="Capa_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-               viewBox="0 0 490 490" xml:space="preserve">
-		<g>
-			<path d="M227.8,174.1v53.7h-53.7c-9.5,0-17.2,7.7-17.2,17.2s7.7,17.2,17.2,17.2h53.7v53.7c0,9.5,7.7,17.2,17.2,17.2
-				s17.1-7.7,17.1-17.2v-53.7h53.7c9.5,0,17.2-7.7,17.2-17.2s-7.7-17.2-17.2-17.2h-53.7v-53.7c0-9.5-7.7-17.2-17.1-17.2
-				S227.8,164.6,227.8,174.1z"/>
-      <path d="M71.7,71.7C25.5,118,0,179.5,0,245s25.5,127,71.8,173.3C118,464.5,179.6,490,245,490s127-25.5,173.3-71.8
-				C464.5,372,490,310.4,490,245s-25.5-127-71.8-173.3C372,25.5,310.5,0,245,0C179.6,0,118,25.5,71.7,71.7z M455.7,245
-				c0,56.3-21.9,109.2-61.7,149s-92.7,61.7-149,61.7S135.8,433.8,96,394s-61.7-92.7-61.7-149S56.2,135.8,96,96s92.7-61.7,149-61.7
-				S354.2,56.2,394,96S455.7,188.7,455.7,245z"/>
-		</g>
-</svg>
-        </button>
+      <AddButton :add-func="addGray"/>
+    </ColorRow>
+  </div>
+  <div v-show="showLumAdjusted">
+    <ColorRow title="Gray-Adjusted Luminance" :info="'Base color with luminance value set to corresponding Gray'">
+      <Color v-for="(c, i) in lumAdjusted" :color="lumAdjusted[i]"/>
+    </ColorRow>
+  </div>
+  <div v-show="showTones">
+    <ColorRow
+        :title="`Gray Tones (${activeColorSpaces.tones.toUpperCase()})`"
+        :has-settings="true"
+        :info="'Computed by interpolating Gray-Adjusted Luminance and Grays'"
+    >
+      <template #settings>
+        <div>
+          <label for="grayratio-slider">Gray ratio:</label>
+          <input id="grayratio-slider" type="range" min="0" max="1" step="0.01" v-model="grayRatio" class="slider">
+          <input id="grayratio-text" type="text" v-model="grayRatio" style="width: 50px;">
         </div>
+        <div>
+          <label for="colorspace">Colormode:</label>
+          <select id="colorspace" v-model="activeColorSpaces.tones">
+            <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">{{ cs.toUpperCase() }}</option>
+          </select>
+        </div>
+      </template>
+      <Color v-for="(mc, i) in tonesColors" :color="tonesColors[i]"/>
     </ColorRow>
   </div>
-  <div v-show="showShades">
-    <ColorRow title="Shades">
-      <Color v-for="(c, i) in baseShades" :color="baseShades[i]"/>
-    </ColorRow>
-  </div>
-  <ColorRow :title="`Interpolation(${activeColorSpace.toUpperCase()})`">
-    <Color v-for="(mc, i) in mixedColors" :color="mixedColors[i]"/>
-  </ColorRow>
 </template>
 
 <style scoped>
@@ -251,9 +392,15 @@ h1 {
   top: -10px;
 }
 
-input, select, button {
-  height: fit-content;
-  margin: 0.5em 0.5em 0;
+.color-value {
+  margin: 1em;
+  display: flex;
+  flex-direction: column;
+
+  input {
+    margin: 0.25em;
+    width: 5em;
+  }
 }
 
 .configs {
@@ -262,7 +409,15 @@ input, select, button {
   margin: 2em;
 }
 
+.show-hide-checkbox {
+  height: fit-content;
+  margin: 0.5em 0.5em 0;
+}
+
 .presets {
+  input, select, button {
+    margin: 0.25em;
+  }
   select {
     flex-grow: 1;
     height: 2em;
@@ -280,76 +435,4 @@ input, select, button {
   width: 100%;
 }
 
-.ratio-factor {
-  width: 6em;
-}
-
-.gray-color:hover {
-  .delete-button {
-    visibility: visible;
-  }
-}
-
-.delete-button {
-  visibility: hidden;
-  position: absolute;
-  top: 1em;
-  right: 1em;
-  button {
-    position: relative;
-    width: 2em;
-    height: 2em;
-    border-style: hidden;
-    border-radius: 1em;
-    background: none;
-    cursor: pointer;
-    overflow: hidden;
-    transition: .3s;
-  }
-
-  svg {
-    color: rgb(231, 50, 50);
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    transition: .3s;
-    fill: none;
-  }
-
-  button:hover svg{
-    transform: translate(-50%, -50%) rotate(-15deg);
-    transition: .3s;
-  }
-}
-
-.add-button {
-  margin-top: 5em;
-
-  button {
-    position: relative;
-    width: 4em;
-    height: 4em;
-    border-style: hidden;
-    cursor: pointer;
-    transition: .3s;
-    background-color: white;
-    fill: #888888;
-  }
-
-  svg {
-    color: #333333;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    opacity: 1;
-    transition: .3s;
-  }
-
-  button:hover svg {
-    fill: black;
-    transition: .3s;
-  }
-}
 </style>

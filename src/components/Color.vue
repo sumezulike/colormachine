@@ -40,6 +40,7 @@ const rgb = computed(() => color.value.css().toUpperCase())
     <Copyable :content="closestColorname" :color="textColor">
       <div class="name">{{closestColorname}}</div>
     </Copyable>
+    <slot></slot>
   </div>
 </template>
 
