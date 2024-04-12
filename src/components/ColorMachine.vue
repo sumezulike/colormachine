@@ -1,112 +1,16 @@
 <script setup>
-import { computed, ref, watch } from "vue";
-import chroma from "chroma-js";
+import { watch } from "vue";
+import chroma from "../color.js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/ColorSquare.vue";
 import EditableColor from "@/components/EditableColor.vue";
-import { clamp, isFloat } from "@/utils.js";
-import {
-  argbFromHex,
-  hexFromArgb,
-  TonalPalette,
-} from "@material/material-color-utilities";
 import AddButton from "@/components/AddButton.vue";
 import Copyable from "@/components/ClipboardCopy.vue";
 
-// Constant
-const colorSpaces = ["rgb", "hsl", "lab", "lch", "lrgb"];
-const defaultPalette = [800, 500, 400, 200, 50];
-const defaultShades = [10, 30, 50, 70, 90];
-const defaultTints = [10, 30, 50, 70, 90];
-const defaultGrays = [
-  { color: chroma("#262626"), ratioFactor: 1.0 },
-  { color: chroma("#777777"), ratioFactor: 1.0 },
-  { color: chroma("#b5b5b5"), ratioFactor: 0.95 },
-  { color: chroma("#e3e3e3"), ratioFactor: 0.8 },
-  { color: chroma("#f6f6f6"), ratioFactor: 0.3 },
-];
-const defaultActiveColorSpaces = {
-  tones: "hsl",
-  shades: "hsl",
-  tints: "hsl",
-};
-const defaultGrayRatio = 0.9;
+import { constants, useColorStore } from "@/store.js";
 
-// Editable
-const baseColor = ref(chroma.random());
-const grays = ref(defaultGrays);
-const palette = ref(defaultPalette);
-const shades = ref(defaultShades);
-const tints = ref(defaultTints);
-const activeColorSpaces = ref(defaultActiveColorSpaces);
-const grayRatio = ref(defaultGrayRatio);
-const showGrays = ref(false);
-const showShades = ref(false);
-const showTones = ref(true);
-const showTints = ref(false);
-const showLumAdjusted = ref(false);
-const showPalette = ref(false);
-const newPresetName = ref("");
-const selectedPresetName = ref("default");
-
-// Computed
-const lumAdjusted = computed(() =>
-  grays.value.map((g) => baseColor.value.luminance(g.color.luminance())),
-);
-const tonesColors = computed(() =>
-  grays.value.map((g, i) =>
-    chroma.mix(
-      lumAdjusted.value[i],
-      g.color,
-      grayRatio.value * g.ratioFactor,
-      activeColorSpaces.value.tones,
-    ),
-  ),
-);
-const colorPalette = computed(() =>
-  palette.value.map((t) => getToneFromColor(baseColor.value, 100 - t / 10)),
-);
-const shadesColors = computed(() =>
-  shades.value.map((w) =>
-    chroma.mix(
-      baseColor.value,
-      "black",
-      w / 100,
-      activeColorSpaces.value.shades,
-    ),
-  ),
-);
-const tintsColors = computed(() =>
-  tints.value.map((w) =>
-    chroma.mix(
-      baseColor.value,
-      "white",
-      w / 100,
-      activeColorSpaces.value.tints,
-    ),
-  ),
-);
-
-function getToneFromColor(color, tone) {
-  const newCol = TonalPalette.fromInt(argbFromHex(color.hex())).tone(tone);
-  return chroma(hexFromArgb(newCol));
-}
-
-function addGray() {
-  grays.value.push({ color: chroma("white"), ratioFactor: 1.0 });
-}
-
-function deleteValue(array, i) {
-  array.splice(i, 1);
-}
-
-function setGrayRatioFactor(e, i) {
-  const newFactor = e.target.value;
-  if (isFloat(newFactor)) {
-    const f = parseFloat(newFactor);
-    grays.value[i].ratioFactor = clamp(0, f, 1);
-  }
-}
+// access the `store` variable anywhere in the component ✨
+const store = useColorStore();
 
 function updateFavicon() {
   const canvas = document.createElement("canvas");
@@ -119,23 +23,23 @@ function updateFavicon() {
     ctx.drawImage(img, 0, 0);
     // [x][ ]
     // [ ][ ]
-    ctx.fillStyle = baseColor.value.hex();
+    ctx.fillStyle = store.baseColor.hex();
     ctx.fillRect(0, 0, 16, 16);
 
     // [ ][x]
     // [ ][ ]
     ctx.fillStyle =
-      tonesColors.value[Math.ceil(tonesColors.value.length / 2)].hex();
+      store.tonesColors[Math.ceil(store.tonesColors.length / 2)].hex();
     ctx.fillRect(16, 0, 16, 16);
 
     // [ ][ ]
     // [x][ ]
-    ctx.fillStyle = grays.value[Math.floor(grays.value.length / 2)].color.hex();
+    ctx.fillStyle = store.grays[Math.floor(store.grays.length / 2)].color.hex();
     ctx.fillRect(0, 16, 16, 16);
 
     // [ ][ ]
     // [ ][x]
-    ctx.fillStyle = tonesColors.value[1].hex();
+    ctx.fillStyle = store.tonesColors[1].hex();
     ctx.fillRect(16, 16, 16, 16);
 
     const link = document.createElement("link");
@@ -154,7 +58,7 @@ function savePreset(name) {
   if (name !== undefined && name !== null && name.length > 0) {
     const presetStr = JSON.stringify(createPreset());
     localStorage.setItem(`PRESET_${name}`, presetStr);
-    newPresetName.value = "";
+    store.newPresetName = "";
   }
 }
 
@@ -173,10 +77,10 @@ function loadPreset(name) {
     const preset = JSON.parse(presetStr);
     load(preset);
   } else {
-    grays.value = defaultGrays;
-    palette.value = defaultPalette;
-    activeColorSpaces.value = defaultActiveColorSpaces;
-    grayRatio.value = defaultGrayRatio;
+    store.grays = constants.defaultGrays;
+    store.palette = constants.defaultPalette;
+    store.activeColorSpaces = constants.defaultActiveColorSpaces;
+    store.grayRatio = constants.defaultGrayRatio;
   }
 }
 
@@ -194,16 +98,16 @@ function exportData() {
   ]);
   const exData = {
     ...state,
-    adjustedLuminance: lumAdjusted.value.map((c) => c.hex()),
-    tonesColors: tonesColors.value.map((c) => c.hex()),
-    colorPalette: colorPalette.value.map((c, i) =>
-      Object.assign({ color: c.hex(), value: palette.value[i] }),
+    adjustedLuminance: store.lumAdjusted.map((c) => c.hex()),
+    tonesColors: store.tonesColors.map((c) => c.hex()),
+    colorPalette: store.colorPalette.map((c, i) =>
+      Object.assign({ color: c.hex(), value: store.palette[i] }),
     ),
-    shadesColors: shadesColors.value.map((c, i) =>
-      Object.assign({ color: c.hex(), value: shades.value[i] }),
+    shadesColors: store.shadesColors.map((c, i) =>
+      Object.assign({ color: c.hex(), value: store.shades[i] }),
     ),
-    tintsColors: tintsColors.value.map((c, i) =>
-      Object.assign({ color: c.hex(), value: tints.value[i] }),
+    tintsColors: store.tintsColors.map((c, i) =>
+      Object.assign({ color: c.hex(), value: store.tints[i] }),
     ),
   };
   return JSON.stringify(exData, null, 4);
@@ -211,21 +115,21 @@ function exportData() {
 
 function createState(exclude) {
   let state = {
-    baseColor: baseColor.value.hex(),
-    grays: grays.value.map((g) =>
+    baseColor: store.baseColor.hex(),
+    grays: store.grays.map((g) =>
       Object.assign({ color: g.color.hex(), ratioFactor: g.ratioFactor }),
     ),
-    palette: palette.value,
-    shades: shades.value,
-    tints: tints.value,
-    activeColorSpaces: activeColorSpaces.value,
-    grayRatio: grayRatio.value,
-    showGrays: showGrays.value,
-    showLumAdjusted: showLumAdjusted.value,
-    showShades: showShades.value,
-    showTints: showTints.value,
-    showPalette: showPalette.value,
-    showTones: showTones.value,
+    palette: store.palette,
+    shades: store.shades,
+    tints: store.tints,
+    activeColorSpaces: store.activeColorSpaces,
+    grayRatio: store.grayRatio,
+    showGrays: store.showGrays,
+    showLumAdjusted: store.showLumAdjusted,
+    showShades: store.showShades,
+    showTints: store.showTints,
+    showPalette: store.showPalette,
+    showTones: store.showTones,
   };
   if (exclude !== undefined) {
     state = Object.fromEntries(
@@ -251,58 +155,47 @@ function loadState() {
 }
 
 function load(state) {
-  baseColor.value = chroma(state.baseColor || baseColor.value);
-  palette.value = state.palette || palette.value;
-  grays.value =
+  store.baseColor = chroma(state.baseColor || store.baseColor);
+  store.palette = state.palette || store.palette;
+  store.grays =
     state.grays === undefined
-      ? grays.value
+      ? store.grays
       : state.grays.map((g) =>
           Object.assign({ color: chroma(g.color), ratioFactor: g.ratioFactor }),
         );
-  shades.value = state.shades || shades.value;
-  tints.value = state.tints || tints.value;
-  activeColorSpaces.value = state.activeColorSpaces || activeColorSpaces.value;
-  grayRatio.value = state.grayRatio || grayRatio.value;
-  showGrays.value =
-    state.showGrays === undefined ? showGrays.value : state.showGrays;
-  showLumAdjusted.value =
+  store.shades = state.shades || store.shades;
+  store.tints = state.tints || store.tints;
+  store.activeColorSpaces = state.activeColorSpaces || store.activeColorSpaces;
+  store.grayRatio = state.grayRatio || store.grayRatio;
+  store.showGrays =
+    state.showGrays === undefined ? store.showGrays : state.showGrays;
+  store.showLumAdjusted =
     state.showLumAdjusted === undefined
-      ? showLumAdjusted.value
+      ? store.showLumAdjusted
       : state.showLumAdjusted;
-  showShades.value =
-    state.showShades === undefined ? showShades.value : state.showShades;
-  showTints.value =
-    state.showTints === undefined ? showTints.value : state.showTints;
-  showPalette.value =
-    state.showPalette === undefined ? showPalette.value : state.showPalette;
-  showTones.value =
-    state.showTones === undefined ? showTones.value : state.showTones;
+  store.showShades =
+    state.showShades === undefined ? store.showShades : state.showShades;
+  store.showTints =
+    state.showTints === undefined ? store.showTints : state.showTints;
+  store.showPalette =
+    state.showPalette === undefined ? store.showPalette : state.showPalette;
+  store.showTones =
+    state.showTones === undefined ? store.showTones : state.showTones;
 }
 
 loadPreset();
 savePreset("default");
 loadState();
 updateFavicon();
-watch(tonesColors, updateFavicon);
-watch(tonesColors, saveState);
-watch(activeColorSpaces, saveState);
-watch(shades, saveState);
-watch(tints, saveState);
-watch(palette, saveState);
-
-watch(showPalette, saveState);
-watch(showShades, saveState);
-watch(showTints, saveState);
-watch(showGrays, saveState);
-watch(showLumAdjusted, saveState);
-watch(showTones, saveState);
+watch(store.$state, updateFavicon);
+watch(store.$state, saveState);
 </script>
 
 <template>
   <h1>ColorMachine</h1>
   <ColorRow title="Base color">
     <EditableColor
-      v-model:color="baseColor"
+      v-model:color="store.baseColor"
       :hidePencil="true"
       :hide-delete="true"
     />
@@ -315,7 +208,7 @@ watch(showTones, saveState);
           id="show-palette"
           type="checkbox"
           class="show-hide-checkbox"
-          v-model="showPalette"
+          v-model="store.showPalette"
         />
       </div>
       <div>
@@ -324,7 +217,7 @@ watch(showTones, saveState);
           id="show-shades"
           type="checkbox"
           class="show-hide-checkbox"
-          v-model="showShades"
+          v-model="store.showShades"
         />
       </div>
       <div>
@@ -333,7 +226,7 @@ watch(showTones, saveState);
           id="show-tints"
           type="checkbox"
           class="show-hide-checkbox"
-          v-model="showTints"
+          v-model="store.showTints"
         />
       </div>
       <div>
@@ -342,7 +235,7 @@ watch(showTones, saveState);
           id="show-grays"
           type="checkbox"
           class="show-hide-checkbox"
-          v-model="showGrays"
+          v-model="store.showGrays"
         />
       </div>
       <div>
@@ -353,7 +246,7 @@ watch(showTones, saveState);
           id="show-lum-adj"
           type="checkbox"
           class="show-hide-checkbox"
-          v-model="showLumAdjusted"
+          v-model="store.showLumAdjusted"
         />
       </div>
       <div>
@@ -362,22 +255,22 @@ watch(showTones, saveState);
           id="show-tones"
           type="checkbox"
           class="show-hide-checkbox"
-          v-model="showTones"
+          v-model="store.showTones"
         />
       </div>
     </div>
     <div class="configs presets">
       <div>
-        <input type="text" id="preset-name" v-model="newPresetName" />
+        <input type="text" id="preset-name" v-model="store.newPresetName" />
         <button
-          :disabled="!newPresetName"
-          @click="() => savePreset(newPresetName)"
+          :disabled="!store.newPresetName"
+          @click="() => savePreset(store.newPresetName)"
         >
           Save preset
         </button>
       </div>
       <div class="select-preset-container">
-        <select id="load-preset" v-model="selectedPresetName">
+        <select id="load-preset" v-model="store.selectedPresetName">
           <option
             v-for="(p, index) in getAllPresetNames()"
             :key="index"
@@ -386,7 +279,7 @@ watch(showTones, saveState);
             {{ p }}
           </option>
         </select>
-        <button @click="() => loadPreset(selectedPresetName)">
+        <button @click="() => loadPreset(store.selectedPresetName)">
           Load preset
         </button>
       </div>
@@ -400,14 +293,14 @@ watch(showTones, saveState);
       </Copyable>
     </div>
   </ColorRow>
-  <div v-show="showPalette">
+  <div v-show="store.showPalette">
     <ColorRow title="Material Palette" :has-settings="false">
       <EditableColor
         class="deletable"
-        v-for="(k, i) in Object.keys(colorPalette)"
+        v-for="(k, i) in Object.keys(store.colorPalette)"
         :show="false"
-        :color="colorPalette[k]"
-        :delete-func="() => deleteValue(palette, i)"
+        :color="store.colorPalette[k]"
+        :delete-func="() => store.deleteValue(store.palette, i)"
         :id="'palette-' + i"
         :key="i"
       >
@@ -421,38 +314,42 @@ watch(showTones, saveState);
               max="1000"
               step="50"
               :id="'palette-val-' + i"
-              v-model="palette[i]"
+              v-model="store.palette[i]"
             />
           </div>
         </template>
         <template #color-slot>
-          <div>Primary-{{ palette[i] }}</div>
+          <div>Primary-{{ store.palette[i] }}</div>
         </template>
       </EditableColor>
-      <AddButton :add-func="() => palette.push(0)" />
+      <AddButton :add-func="() => store.palette.push(0)" />
     </ColorRow>
   </div>
-  <div v-show="showShades">
+  <div v-show="store.showShades">
     <ColorRow
-      :title="`Shades (${activeColorSpaces.shades.toUpperCase()})`"
+      :title="`Shades (${store.activeColorSpaces.shades.toUpperCase()})`"
       :has-settings="true"
     >
       <template #settings>
         <div>
           <label for="colorspace">Colormode:</label>
-          <select id="colorspace" v-model="activeColorSpaces.shades">
-            <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">
+          <select id="colorspace" v-model="store.activeColorSpaces.shades">
+            <option
+              v-for="(cs, index) in constants.colorSpaces"
+              :key="index"
+              :value="cs"
+            >
               {{ cs.toUpperCase() }}
             </option>
           </select>
         </div>
       </template>
       <EditableColor
-        v-for="(c, i) in shadesColors"
-        :color="shadesColors[i]"
+        v-for="(c, i) in store.shadesColors"
+        :color="store.shadesColors[i]"
         :show="false"
         :id="'shades-' + i"
-        :delete-func="() => deleteValue(shades, i)"
+        :delete-func="() => store.deleteValue(store.shades, i)"
         :key="i"
       >
         <template #inputs>
@@ -464,33 +361,37 @@ watch(showTones, saveState);
               max="100"
               step="5"
               :id="'shades-val-' + i"
-              v-model="shades[i]"
+              v-model="store.shades[i]"
             />
           </div>
         </template>
       </EditableColor>
-      <AddButton :add-func="() => shades.push(0)" />
+      <AddButton :add-func="() => store.shades.push(0)" />
     </ColorRow>
   </div>
-  <div v-show="showTints">
+  <div v-show="store.showTints">
     <ColorRow
-      :title="`Tints (${activeColorSpaces.tints.toUpperCase()})`"
+      :title="`Tints (${store.activeColorSpaces.tints.toUpperCase()})`"
       :has-settings="true"
     >
       <template #settings>
         <label for="colorspace">Colormode:</label>
-        <select id="colorspace" v-model="activeColorSpaces.tints">
-          <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">
+        <select id="colorspace" v-model="store.activeColorSpaces.tints">
+          <option
+            v-for="(cs, index) in constants.colorSpaces"
+            :key="index"
+            :value="cs"
+          >
             {{ cs.toUpperCase() }}
           </option>
         </select>
       </template>
       <EditableColor
-        v-for="(c, i) in tintsColors"
-        :color="tintsColors[i]"
+        v-for="(c, i) in store.tintsColors"
+        :color="store.tintsColors[i]"
         :show="false"
         :id="'tints-' + i"
-        :delete-func="() => deleteValue(tints, i)"
+        :delete-func="() => store.deleteValue(store.tints, i)"
         :key="i"
       >
         <template #inputs>
@@ -502,22 +403,22 @@ watch(showTones, saveState);
               max="100"
               step="5"
               :id="'tints-val-' + i"
-              v-model="tints[i]"
+              v-model="store.tints[i]"
             />
           </div>
         </template>
       </EditableColor>
-      <AddButton :add-func="() => tints.push(0)" />
+      <AddButton :add-func="() => store.tints.push(0)" />
     </ColorRow>
   </div>
-  <div v-show="showGrays">
+  <div v-show="store.showGrays">
     <ColorRow title="Grays">
       <EditableColor
         :show="false"
-        v-for="(c, i) in grays"
-        v-model:color="grays[i].color"
+        v-for="(c, i) in store.grays"
+        v-model:color="store.grays[i].color"
         :id="'grays-' + i"
-        :delete-func="() => deleteValue(grays, i)"
+        :delete-func="() => store.deleteValue(store.grays, i)"
         :key="i"
       >
         <template #extra-input>
@@ -530,26 +431,30 @@ watch(showTones, saveState);
               min="0"
               max="1"
               :id="'grayratio-factor-' + i"
-              @input="(e) => setGrayRatioFactor(e, i)"
-              :value="grays[i].ratioFactor"
+              @input="(e) => store.setGrayRatioFactor(e, i)"
+              :value="store.grays[i].ratioFactor"
             />
           </div>
         </template>
       </EditableColor>
-      <AddButton :add-func="addGray" />
+      <AddButton :add-func="store.addGray" />
     </ColorRow>
   </div>
-  <div v-show="showLumAdjusted">
+  <div v-show="store.showLumAdjusted">
     <ColorRow
       title="Gray-Adjusted Luminance"
       :info="'Base color with luminance value set to corresponding Gray'"
     >
-      <Color v-for="(c, i) in lumAdjusted" :color="lumAdjusted[i]" :key="i" />
+      <Color
+        v-for="(c, i) in store.lumAdjusted"
+        :color="store.lumAdjusted[i]"
+        :key="i"
+      />
     </ColorRow>
   </div>
-  <div v-show="showTones">
+  <div v-show="store.showTones">
     <ColorRow
-      :title="`Gray Tones (${activeColorSpaces.tones.toUpperCase()})`"
+      :title="`Gray Tones (${store.activeColorSpaces.tones.toUpperCase()})`"
       :has-settings="true"
       :info="'Computed by interpolating Gray-Adjusted Luminance and Grays'"
     >
@@ -562,26 +467,34 @@ watch(showTones, saveState);
             min="0"
             max="1"
             step="0.01"
-            v-model="grayRatio"
+            v-model="store.grayRatio"
             class="slider"
           />
           <input
             id="grayratio-text"
             type="text"
-            v-model="grayRatio"
+            v-model="store.grayRatio"
             style="width: 50px"
           />
         </div>
         <div>
           <label for="colorspace">Colormode:</label>
-          <select id="colorspace" v-model="activeColorSpaces.tones">
-            <option v-for="(cs, index) in colorSpaces" :key="index" :value="cs">
+          <select id="colorspace" v-model="store.activeColorSpaces.tones">
+            <option
+              v-for="(cs, index) in constants.colorSpaces"
+              :key="index"
+              :value="cs"
+            >
               {{ cs.toUpperCase() }}
             </option>
           </select>
         </div>
       </template>
-      <Color v-for="(mc, i) in tonesColors" :color="tonesColors[i]" :key="i" />
+      <Color
+        v-for="(mc, i) in store.tonesColors"
+        :color="store.tonesColors[i]"
+        :key="i"
+      />
     </ColorRow>
   </div>
 </template>

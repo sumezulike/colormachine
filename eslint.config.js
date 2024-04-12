@@ -20,4 +20,9 @@ export default [
   ...compat.extends("standard"),
   ...pluginVue.configs["flat/essential"],
   eslintConfigPrettier,
+  {
+    rules: {
+      "no-unused-vars": "warn",
+    },
+  },
 ];
