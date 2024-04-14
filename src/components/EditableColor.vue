@@ -1,6 +1,6 @@
 <script setup>
 import Color from "@/components/ColorSquare.vue";
-import chroma from "chroma-js";
+import { chroma } from "@/color.js";
 import { computed, ref } from "vue";
 
 const color = defineModel("color");
@@ -35,7 +35,7 @@ const textColor = computed(() =>
         <slot name="color-slot"></slot>
       </Color>
       <slot></slot>
-      <div v-show="!props.hidePencil">
+      <div v-if="!props.hidePencil">
         <label class="pencil" :for="'edit-' + props.id">
           <svg
             :fill="textColor"
@@ -55,7 +55,7 @@ const textColor = computed(() =>
           v-model="showInputs"
         />
       </div>
-      <div v-show="!props.hideDelete">
+      <div v-if="!props.hideDelete">
         <label class="delete" :for="'delete-' + props.id">
           <svg
             width="2em"
@@ -81,7 +81,7 @@ const textColor = computed(() =>
         />
       </div>
     </div>
-    <div v-show="showInputs">
+    <div v-if="showInputs">
       <slot name="inputs">
         <div class="color-inputs">
           <input

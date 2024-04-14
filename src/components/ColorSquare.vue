@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from "vue";
-import chroma from "chroma-js";
-import colornames from "../assets/colornames.json"; // https://github.com/jonathantneal/color-names
+import { chroma, getClosestColor } from "@/color.js";
 import Copyable from "@/components/ClipboardCopy.vue";
 
 const props = defineProps(["color"]);
@@ -9,22 +8,6 @@ const color = computed(() => chroma(props.color));
 const textColor = computed(() =>
   chroma.contrast(color.value, "black") > 4.5 ? "black" : "white",
 );
-
-function getClosestColor(c) {
-  let closest = "";
-  let minDist = 100000000;
-  for (const [hex, name] of Object.entries(colornames)) {
-    const newDist = chroma.deltaE(c, hex);
-    if (newDist < minDist) {
-      closest = name;
-      minDist = newDist;
-    }
-    if (minDist === 0) {
-      return closest;
-    }
-  }
-  return closest;
-}
 
 const closestColorname = computed(() => getClosestColor(color.value));
 const rgb = computed(() => color.value.css().toUpperCase());
