@@ -25,6 +25,7 @@ function updateFavicon() {
   const img = new Image();
   img.src = "/colormachine/favicon.ico";
   img.onload = function () {
+    let i;
     ctx.drawImage(img, 0, 0);
     // [x][ ]
     // [ ][ ]
@@ -33,17 +34,23 @@ function updateFavicon() {
 
     // [ ][x]
     // [ ][ ]
-    ctx.fillStyle = store.tones[0] ? store.tones[0].color.hex() : "#ff0000";
+    i = Math.floor(store.tones.length / 2);
+    ctx.fillStyle =
+      store.tones[i] !== undefined ? store.tones[i].color.hex() : "#ff0000";
     ctx.fillRect(16, 0, 16, 16);
 
     // [ ][ ]
     // [x][ ]
-    ctx.fillStyle = store.grays[0] ? store.grays[0].color.hex() : "#00ff00";
+    i = Math.floor(store.grays.length / 2);
+    ctx.fillStyle =
+      store.grays[i] !== undefined ? store.grays[i].color.hex() : "#00ff00";
     ctx.fillRect(0, 16, 16, 16);
 
     // [ ][ ]
     // [ ][x]
-    ctx.fillStyle = store.shades[0] ? store.shades[0].color.hex() : "#0000ff";
+    i = Math.floor(store.shades.length / 2);
+    ctx.fillStyle =
+      store.shades[i] !== undefined ? store.shades[i].color.hex() : "#0000ff";
     ctx.fillRect(16, 16, 16, 16);
 
     const link = document.createElement("link");
