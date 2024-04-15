@@ -33,21 +33,21 @@ function updateFavicon() {
     // [ ][ ]
     i = Math.floor(store.tints.length / 2);
     ctx.fillStyle =
-      store.tints[i] !== undefined ? store.tints[i].color.hex() : "#ff0000";
+      store.tints[i] !== undefined ? store.tints[i].color.hex() : "#bbbbbb";
     ctx.fillRect(16, 0, 16, 16);
 
     // [ ][ ]
     // [x][ ]
     i = Math.floor(store.tones.length / 2);
     ctx.fillStyle =
-      store.tones[i] !== undefined ? store.tones[i].color.hex() : "#00ff00";
+      store.tones[i] !== undefined ? store.tones[i].color.hex() : "#888888";
     ctx.fillRect(0, 16, 16, 16);
 
     // [ ][ ]
     // [ ][x]
     i = Math.floor(store.shades.length / 2);
     ctx.fillStyle =
-      store.shades[i] !== undefined ? store.shades[i].color.hex() : "#0000ff";
+      store.shades[i] !== undefined ? store.shades[i].color.hex() : "#444444";
     ctx.fillRect(16, 16, 16, 16);
 
     const link = document.createElement("link");
