@@ -145,9 +145,9 @@ export const useColorStore = defineStore("color", () => {
     return tints;
   });
 
-  const state = ref({
+  const state = reactive({
     version: "2.0",
-    baseColor: baseColor.value.hex(),
+    baseColor: computed(() => baseColor.value.hex()),
     graysValues,
     paletteValues,
     shadesValues,

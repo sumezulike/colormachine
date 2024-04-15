@@ -139,11 +139,7 @@ watch(store.state, () => state.saveToStorage());
     </div>
     <div class="configs presets">
       <div>
-        <input
-          type="text"
-          id="preset-name"
-          v-model="presets.newPresetName.value"
-        />
+        <input type="text" id="preset-name" v-model="presets.newPresetName" />
         <button
           :disabled="!presets.newPresetName"
           @click="() => presets.save()"
@@ -152,21 +148,21 @@ watch(store.state, () => state.saveToStorage());
         </button>
       </div>
       <div class="select-preset-container">
-        <select id="load-preset" v-model="presets.selectedPresetName.value">
+        <select id="load-preset" v-model="presets.selectedPresetName">
           <option
-            v-for="(p, index) in presets.allNames.value"
+            v-for="(p, index) in presets.allNames"
             :key="index"
             :value="p"
           >
             {{ p }}
           </option>
         </select>
-        <button @click="() => presets.load(presets.selectedPresetName.value)">
+        <button @click="() => presets.load(presets.selectedPresetName)">
           Load preset
         </button>
       </div>
       <Copyable
-        :content="JSON.stringify(state.export())"
+        :content="state.export"
         :hide-content="true"
         color="black"
         bg-color="white"

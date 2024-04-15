@@ -1,20 +1,20 @@
-import { isProxy, ref, toRaw, unref } from "vue";
+import { computed, isProxy, reactive, ref, toRaw, unref } from "vue";
 import { chroma } from "@/color.js";
 
 export const getStateHandler = (store) => {
-  function getStateObject(exclude) {
+  function getStateObject(storeState, exclude) {
     if (exclude !== undefined) {
       return JSON.parse(
         JSON.stringify(
           Object.fromEntries(
-            Object.entries(store.state)
+            Object.entries(storeState)
               .filter(([key]) => !exclude.includes(key))
               .map(([k, v]) => [k, toRaw(v)]),
           ),
         ),
       );
     }
-    return store.state;
+    return storeState;
   }
 
   function stateV1toV2(state) {
@@ -93,9 +93,9 @@ export const getStateHandler = (store) => {
     return obj;
   }
 
-  const state = {
+  const state = reactive({
     saveToStorage: (name = "_STATE_") => {
-      const stateObj = getStateObject();
+      const stateObj = getStateObject(store.state);
       const stateStr = JSON.stringify(stateObj);
       localStorage.setItem(name, stateStr);
     },
@@ -109,24 +109,27 @@ export const getStateHandler = (store) => {
           store.$patch(newState);
         }
       } catch (e) {
-        console.log("Failed to load state!");
-        console.log(e);
+        console.error("Failed to load state!");
+        console.error(e);
       }
     },
-    export: () => {
-      return getRepr(getStateObject());
-    },
-  };
-  const presets = {
+    export: computed(() => {
+      return JSON.stringify(getRepr(getStateObject(store.state)));
+    }),
+  });
+  const presets = reactive({
     newPresetName: ref(""),
     selectedPresetName: ref("default"),
     save: () => {
-      presets.saveAs(presets.newPresetName.value);
-      presets.newPresetName.value = "";
+      presets.saveAs(presets.newPresetName);
+      presets.selectedPresetName = presets.newPresetName;
+      presets.newPresetName = "";
     },
     saveAs: (name) => {
       if (name !== undefined && name !== null && name.length > 0) {
-        const presetStr = JSON.stringify(getStateObject(["baseColor"]));
+        const presetStr = JSON.stringify(
+          getStateObject(store.state, ["baseColor"]),
+        );
         localStorage.setItem(`PRESET_${name}`, presetStr);
         presets.refreshNames();
       }
@@ -146,10 +149,10 @@ export const getStateHandler = (store) => {
       const names = Object.keys(localStorage)
         .filter((k) => k.startsWith("PRESET_"))
         .map((k) => k.slice(7));
-      presets.allNames.value = names;
+      presets.allNames = names;
       return names;
     },
-  };
-  console.log(presets.refreshNames());
+  });
+
   return { state, presets };
 };
