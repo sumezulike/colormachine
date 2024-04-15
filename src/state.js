@@ -1,4 +1,4 @@
-import { isProxy, toRaw, unref } from "vue";
+import { isProxy, ref, toRaw, unref } from "vue";
 import { chroma } from "@/color.js";
 
 export const getStateHandler = (store) => {
@@ -109,7 +109,7 @@ export const getStateHandler = (store) => {
           store.$patch(newState);
         }
       } catch (e) {
-        console.log("Failed to log state!");
+        console.log("Failed to load state!");
         console.log(e);
       }
     },
@@ -118,13 +118,19 @@ export const getStateHandler = (store) => {
     },
   };
   const presets = {
+    newPresetName: ref(""),
+    selectedPresetName: ref("default"),
+    save: () => {
+      presets.saveAs(presets.newPresetName);
+      presets.newPresetName = "";
+    },
     saveAs: (name) => {
       if (name !== undefined && name !== null && name.length > 0) {
         const presetStr = JSON.stringify(getStateObject(["baseColor"]));
         localStorage.setItem(`PRESET_${name}`, presetStr);
+        presets.refreshNames();
       }
     },
-    loadDefault: () => {},
     load: (name) => {
       let presetStr;
       if (name !== null && name !== undefined) {
@@ -135,45 +141,15 @@ export const getStateHandler = (store) => {
         store.$patch(preset);
       }
     },
-    allNames: () => {
-      return Object.keys(localStorage)
+    allNames: ref(["default"]),
+    refreshNames: () => {
+      const names = Object.keys(localStorage)
         .filter((k) => k.startsWith("PRESET_"))
         .map((k) => k.slice(7));
+      presets.allNames.value = names;
+      return names;
     },
   };
-  /*
-  function loadOld(state) {
-    store.baseColor = chroma(state.baseColor || store.baseColor);
-    store.paletteValues = state.palette || store.paletteValues;
-    store.graysValues =
-      state.grays === undefined
-        ? store.graysValues
-        : state.grays.map((g) =>
-            Object.assign({
-              color: chroma(g.color),
-              ratioFactor: g.ratioFactor,
-            }),
-          );
-    store.shadesValues = state.shades || store.shadesValues;
-    store.tintsValues = state.tints || store.tintsValues;
-    store.activeColorSpaces =
-      state.activeColorSpaces || store.activeColorSpaces;
-    store.grayRatio = state.grayRatio || store.grayRatio;
-    store.showGrays =
-      state.showGrays === undefined ? store.showGrays : state.showGrays;
-    store.showLumAdjusted =
-      state.showLumAdjusted === undefined
-        ? store.showLumAdjusted
-        : state.showLumAdjusted;
-    store.showShades =
-      state.showShades === undefined ? store.showShades : state.showShades;
-    store.showTints =
-      state.showTints === undefined ? store.showTints : state.showTints;
-    store.showPalette =
-      state.showPalette === undefined ? store.showPalette : state.showPalette;
-    store.showTones =
-      state.showTones === undefined ? store.showTones : state.showTones;
-  }
-*/
+  console.log(presets.refreshNames());
   return { state, presets };
 };

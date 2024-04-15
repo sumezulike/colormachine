@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from "vue";
+import { watch } from "vue";
 import { deleteCache } from "../color.js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/ColorSquare.vue";
@@ -13,9 +13,6 @@ import { getStateHandler } from "@/state.js";
 // access the `store` variable anywhere in the component ✨
 const store = useColorStore();
 const { state, presets } = getStateHandler(store);
-
-const newPresetName = ref("");
-const selectedPresetName = ref("default");
 
 function updateFavicon() {
   const canvas = document.createElement("canvas");
@@ -142,25 +139,29 @@ watch(store.state, () => state.saveToStorage());
     </div>
     <div class="configs presets">
       <div>
-        <input type="text" id="preset-name" v-model="newPresetName" />
+        <input
+          type="text"
+          id="preset-name"
+          v-model="presets.newPresetName.value"
+        />
         <button
-          :disabled="!newPresetName"
-          @click="() => presets.saveAs(newPresetName)"
+          :disabled="!presets.newPresetName"
+          @click="() => presets.save()"
         >
           Save preset
         </button>
       </div>
       <div class="select-preset-container">
-        <select id="load-preset" v-model="selectedPresetName">
+        <select id="load-preset" v-model="presets.selectedPresetName.value">
           <option
-            v-for="(p, index) in presets.allNames()"
+            v-for="(p, index) in presets.allNames.value"
             :key="index"
             :value="p"
           >
             {{ p }}
           </option>
         </select>
-        <button @click="() => presets.load(selectedPresetName)">
+        <button @click="() => presets.load(presets.selectedPresetName.value)">
           Load preset
         </button>
       </div>
