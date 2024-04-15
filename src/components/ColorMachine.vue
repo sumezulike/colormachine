@@ -1,5 +1,5 @@
 <script setup>
-import { watch } from "vue";
+import { computed, watch } from "vue";
 import { deleteColorNameCache } from "@/color.js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/ColorSquare.vue";
@@ -65,8 +65,16 @@ function updateFavicon() {
 
 presets.saveAs("default");
 
-state.loadFromStorage();
+const stateParam = new URLSearchParams(window.location.search).get("s");
+if (stateParam !== null && stateParam !== undefined) {
+  state.loadFromBase64(stateParam);
+  window.history.replaceState({}, document.title, document.URL.split("?")[0]);
+} else {
+  state.loadFromStorage();
+}
 state.saveToStorage();
+
+const shareURL = computed(() => document.URL + "?s=" + state.base64);
 
 watch(
   () => [store.baseColor, store.tones, store.tints, store.shades],
@@ -169,14 +177,24 @@ watch(store.state, () => state.saveToStorage());
           Load preset
         </button>
       </div>
-      <Copyable
-        :content="state.export"
-        :hide-content="true"
-        color="black"
-        bg-color="white"
-      >
-        <button class="copy-button">Copy as JSON</button>
-      </Copyable>
+      <div class="export-buttons">
+        <Copyable
+          :content="state.export"
+          :hide-content="true"
+          color="black"
+          bg-color="white"
+        >
+          <button class="copy-button">Copy as JSON</button>
+        </Copyable>
+        <Copyable
+          :content="shareURL"
+          :hide-content="true"
+          color="black"
+          bg-color="white"
+        >
+          <button class="copy-button">Copy Share URL</button>
+        </Copyable>
+      </div>
     </div>
   </ColorRow>
   <div v-if="store.visibility.palette">
@@ -427,6 +445,15 @@ h1 {
   }
 
   button {
+    width: fit-content;
+    height: 2em;
+  }
+}
+
+.export-buttons {
+  display: flex;
+  button {
+    margin: 0.25em;
     width: fit-content;
     height: 2em;
   }

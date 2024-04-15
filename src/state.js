@@ -64,7 +64,10 @@ export const getStateHandler = (store) => {
 
   function fixState(state) {
     if (state.version === undefined) {
-      return stateV1toV2(state);
+      state = stateV1toV2(state);
+    }
+    if (state.baseColor !== undefined) {
+      state.baseColor = chroma(state.baseColor);
     }
     return state;
   }
@@ -94,25 +97,48 @@ export const getStateHandler = (store) => {
   }
 
   const state = reactive({
-    saveToStorage: (name = "_STATE_") => {
+    getStateStr: () => {
       const stateObj = getStateObject(store.state);
-      const stateStr = JSON.stringify(stateObj);
-      localStorage.setItem(name, stateStr);
+      return JSON.stringify(stateObj);
     },
-    loadFromStorage: (name = "_STATE_") => {
+    saveToStorage: (name = "_STATE_") => {
+      localStorage.setItem(name, state.getStateStr());
+    },
+    loadFromBase64: (b64Buf) => {
       try {
-        const stateStr = localStorage.getItem(name);
+        const stateStr = atob(b64Buf);
 
         if (stateStr !== null && stateStr !== undefined) {
-          const newState = fixState(JSON.parse(stateStr));
-          newState.baseColor = chroma(newState.baseColor);
-          store.$patch(newState);
+          state.load(JSON.parse(stateStr));
         }
       } catch (e) {
         console.error("Failed to load state!");
         console.error(e);
       }
     },
+    load: (stateObj) => {
+      try {
+        store.$patch(fixState(stateObj));
+      } catch (e) {
+        console.error("Failed to load state!");
+        console.error(e);
+      }
+    },
+    loadFromStorage: (name = "_STATE_") => {
+      try {
+        const stateStr = localStorage.getItem(name);
+
+        if (stateStr !== null && stateStr !== undefined) {
+          state.load(JSON.parse(stateStr));
+        }
+      } catch (e) {
+        console.error("Failed to load state!");
+        console.error(e);
+      }
+    },
+    base64: computed(() => {
+      return btoa(state.getStateStr());
+    }),
     export: computed(() => {
       return JSON.stringify(getRepr(getStateObject(store.state)));
     }),
