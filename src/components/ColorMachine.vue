@@ -1,6 +1,6 @@
 <script setup>
 import { watch } from "vue";
-import { deleteCache } from "../color.js";
+import { deleteColorNameCache } from "@/color.js";
 import ColorRow from "@/components/ColorRow.vue";
 import Color from "@/components/ColorSquare.vue";
 import EditableColor from "@/components/EditableColor.vue";
@@ -10,7 +10,6 @@ import Copyable from "@/components/ClipboardCopy.vue";
 import { constants, useColorStore } from "@/store.js";
 import { getStateHandler } from "@/state.js";
 
-// access the `store` variable anywhere in the component ✨
 const store = useColorStore();
 const { state, presets } = getStateHandler(store);
 
@@ -54,7 +53,13 @@ function updateFavicon() {
     link.type = "image/x-icon";
     link.rel = "shortcut icon";
     link.href = canvas.toDataURL("image/x-icon");
-    document.getElementsByTagName("head")[0].appendChild(link);
+    link.id = "generated-favicon";
+    const oldLink = document.getElementById("generated-favicon");
+    if (oldLink === null) {
+      document.getElementsByTagName("head")[0].appendChild(link);
+    } else {
+      document.getElementsByTagName("head")[0].replaceChild(link, oldLink);
+    }
   };
 }
 
@@ -63,9 +68,12 @@ presets.saveAs("default");
 state.loadFromStorage();
 state.saveToStorage();
 
-updateFavicon();
-watch(store.$state, updateFavicon);
-watch(store.baseColor, deleteCache);
+watch(
+  () => [store.baseColor, store.tones, store.tints, store.shades],
+  updateFavicon,
+  { immediate: true },
+);
+watch(store.baseColor, deleteColorNameCache);
 watch(store.state, () => state.saveToStorage());
 </script>
 

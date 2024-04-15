@@ -58,7 +58,7 @@ function memoize(fn) {
   };
 }
 
-export function deleteCache() {
+export function deleteColorNameCache() {
   cache = {};
 }
 
