@@ -1,10 +1,17 @@
 import { isProxy, toRaw, unref } from "vue";
+import { chroma } from "@/color.js";
 
 export const getStateHandler = (store) => {
   function getStateObject(exclude) {
     if (exclude !== undefined) {
-      return Object.fromEntries(
-        Object.entries(store.state).filter(([key]) => !exclude.includes(key)),
+      return JSON.parse(
+        JSON.stringify(
+          Object.fromEntries(
+            Object.entries(store.state)
+              .filter(([key]) => !exclude.includes(key))
+              .map(([k, v]) => [k, toRaw(v)]),
+          ),
+        ),
       );
     }
     return store.state;
@@ -88,15 +95,22 @@ export const getStateHandler = (store) => {
 
   const state = {
     saveToStorage: (name = "_STATE_") => {
-      const stateStr = JSON.stringify(getStateObject());
+      const stateObj = getStateObject();
+      const stateStr = JSON.stringify(stateObj);
       localStorage.setItem(name, stateStr);
     },
     loadFromStorage: (name = "_STATE_") => {
-      const stateStr = localStorage.getItem(name);
+      try {
+        const stateStr = localStorage.getItem(name);
 
-      if (stateStr !== null && stateStr !== undefined) {
-        const newState = fixState(JSON.parse(stateStr));
-        store.$patch(newState);
+        if (stateStr !== null && stateStr !== undefined) {
+          const newState = fixState(JSON.parse(stateStr));
+          newState.baseColor = chroma(newState.baseColor);
+          store.$patch(newState);
+        }
+      } catch (e) {
+        console.log("Failed to log state!");
+        console.log(e);
       }
     },
     export: () => {
@@ -108,7 +122,6 @@ export const getStateHandler = (store) => {
       if (name !== undefined && name !== null && name.length > 0) {
         const presetStr = JSON.stringify(getStateObject(["baseColor"]));
         localStorage.setItem(`PRESET_${name}`, presetStr);
-        store.newPresetName = "";
       }
     },
     loadDefault: () => {},

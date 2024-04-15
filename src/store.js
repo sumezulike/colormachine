@@ -147,7 +147,7 @@ export const useColorStore = defineStore("color", () => {
 
   const state = ref({
     version: "2.0",
-    baseColor,
+    baseColor: baseColor.value.hex(),
     graysValues,
     paletteValues,
     shadesValues,
