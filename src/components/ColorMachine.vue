@@ -64,13 +64,12 @@ function updateFavicon() {
 }
 
 presets.saveAs("default");
+state.loadFromStorage();
 
 const stateParam = new URLSearchParams(window.location.search).get("s");
 if (stateParam !== null && stateParam !== undefined) {
   state.loadFromBase64(stateParam);
   window.history.replaceState({}, document.title, document.URL.split("?")[0]);
-} else {
-  state.loadFromStorage();
 }
 state.saveToStorage();
 
