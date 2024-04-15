@@ -34,16 +34,16 @@ function updateFavicon() {
 
     // [ ][x]
     // [ ][ ]
-    i = Math.floor(store.tones.length / 2);
+    i = Math.floor(store.tints.length / 2);
     ctx.fillStyle =
-      store.tones[i] !== undefined ? store.tones[i].color.hex() : "#ff0000";
+      store.tints[i] !== undefined ? store.tints[i].color.hex() : "#ff0000";
     ctx.fillRect(16, 0, 16, 16);
 
     // [ ][ ]
     // [x][ ]
-    i = Math.floor(store.grays.length / 2);
+    i = Math.floor(store.tones.length / 2);
     ctx.fillStyle =
-      store.grays[i] !== undefined ? store.grays[i].color.hex() : "#00ff00";
+      store.tones[i] !== undefined ? store.tones[i].color.hex() : "#00ff00";
     ctx.fillRect(0, 16, 16, 16);
 
     // [ ][ ]
