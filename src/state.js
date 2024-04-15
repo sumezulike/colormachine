@@ -122,7 +122,7 @@ export const getStateHandler = (store) => {
     selectedPresetName: ref("default"),
     save: () => {
       presets.saveAs(presets.newPresetName.value);
-      presets.newPresetName = "";
+      presets.newPresetName.value = "";
     },
     saveAs: (name) => {
       if (name !== undefined && name !== null && name.length > 0) {
